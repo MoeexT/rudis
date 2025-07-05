@@ -1,161 +1,61 @@
-use std::{
-    collections::HashMap,
-    env,
-    error::Error,
-    sync::Arc,
-    time::{Duration, Instant},
-};
-
-use anyhow::Context;
+use anyhow::{Context, Result};
+use tokio::io::AsyncWriteExt;
+use std::convert::TryInto;
+use std::{env, sync::Arc};
 use tokio::{
-    io::{AsyncReadExt, AsyncWriteExt},
+    io::{BufReader, BufWriter},
     net::{TcpListener, TcpStream},
     sync::RwLock,
 };
 
+use crate::{
+    command::{Command, CommandExecutor},
+    storage::Database,
+};
+
+mod command;
+mod context;
 mod errors;
 mod resp;
-
-type Storage = Arc<RwLock<HashMap<String, ValueEntry>>>;
-struct ValueEntry {
-    value: String,
-    expiry: Option<Instant>,
-}
+mod storage;
 
 #[tokio::main]
-async fn main() -> Result<(), Box<dyn Error>> {
+async fn main() -> Result<()> {
     if env::var("RUST_LOG").is_err() {
         unsafe {
-            env::set_var("RUST_LOG", "debug");
+            env::set_var("RUST_LOG", "trace");
         }
     }
     env_logger::init();
-    let storage: Storage = Arc::new(RwLock::new(HashMap::new()));
-
-    let storage_cleaner = storage.clone();
-    tokio::spawn(async move {
-        let mut interval = tokio::time::interval(Duration::from_secs(5));
-        loop {
-            interval.tick().await;
-            let mut storage = storage_cleaner.write().await;
-            storage.retain(|key, entry|{
-                entry.expiry.map(|expiry| {
-                    log::debug!("Retain key: {key}");
-                    return expiry > Instant::now();
-                }).unwrap_or(true)
-            });
-        }
-    });
-
-    let listener = TcpListener::bind("0.0.0.0:6379").await.context("Bind 0.0.0.0:6379 failed")?;
+    let db = Arc::new(RwLock::new(Database::new(0)));
+    log::debug!("database created");
+    let address = "0.0.0.0:6379";
+    let listener = TcpListener::bind(&address)
+        .await
+        .context(format!("Bind {} failed", &address))?;
+    log::info!("redis is listening on {}", address);
 
     loop {
-        let (socket, _) = listener.accept().await.context("Accept socket failed")?;
-        let storage = storage.clone();
-        tokio::spawn(async move { handle_socket(socket, storage).await });
+        let (socket, addr) = listener.accept().await.context("Accept socket failed")?;
+        let client_id = 0usize;
+        let db = db.clone();
+        let ctx = context::Context::new(client_id, db);
+        log::debug!("received connection from: {}, id: {}", &addr, client_id);
+        tokio::spawn(async move { handle_socket(socket, ctx).await });
     }
 }
 
-async fn handle_socket(mut socket: TcpStream, storage: Storage) {
-    let mut buf = [0; 1024];
-    let len = match socket.read(&mut buf).await {
-        Ok(0) => return,
-        Ok(n) => n,
-        Err(e) => {
-            log::error!("Failed to read from socket; err: {:?}", e);
-            return;
-        }
-    };
+async fn handle_socket(socket: TcpStream, ctx: context::Context) -> Result<()> {
+    let (reader, writer) = socket.into_split();
+    let mut reader = BufReader::new(reader);
+    let mut writer = BufWriter::new(writer);
 
-    let commands = match resp::parse_resp(&buf[..len]) {
-        Ok(cmds) => cmds,
-        Err(e) => {
-            let _ = socket.write_all(b"-ERR Invalid command\r\n").await;
-            log::error!("Failed to parse command; err: {:?}", e);
-            return;
-        }
-    };
-
-    match commands[0].to_uppercase().as_str() {
-        "PING" => {
-            let _ = socket.write_all(b"+PONG\r\n").await;
-        }
-        "ECHO" if commands.len() > 1 => {
-            let response = format!("+{:#?}\r\n", &commands[1..]);
-            let _ = socket.write_all(response.as_bytes()).await;
-        }
-        "SET" if commands.len() >= 3 => {
-            let mut storage = storage.write().await;
-            let value = ValueEntry {
-                value: commands[2].clone(),
-                expiry: None,
-            };
-            storage.insert(commands[1].clone(), value);
-            let _ = socket.write_all(b"+OK\r\n").await;
-        }
-        "GET" if commands.len() > 1 => {
-            let storage = storage.read().await;
-            match storage.get(&commands[1]) {
-                Some(value) => {
-                    let response = format!("+{}\r\n", value.value);
-                    let _ = socket.write_all(response.as_bytes()).await;
-                    log::debug!("Return {response}");
-                }
-                None => {
-                    let _ = socket.write_all(b"$-1\r\n").await;
-                    log::debug!("Return -1");
-                }
-            }
-        }
-        "DEL" if commands.len() > 1 => {
-            let mut storage = storage.write().await;
-            let count = storage.remove(&commands[1]).is_some() as i64;
-            let response = format!(":{}\r\n", count);
-            let _ = socket.write_all(response.as_bytes()).await;
-        }
-        "EXPIRE" if commands.len() >= 3 => {
-            let key = &commands[1];
-            let seconds: u64 = match commands[2].parse() {
-                Ok(n) => n,
-                Err(_) => {
-                    let _ = socket.write_all(b"-ERR Invalid integer\r\n").await;
-                    return;
-                }
-            };
-            let mut storage = storage.write().await;
-            if let Some(entry) = storage.get_mut(key) {
-                entry.expiry = Some(Instant::now() + Duration::from_secs(seconds));
-                let _ = socket.write_all(b":1\r\n").await;
-            } else {
-                let _ = socket.write_all(b":0\r\n").await;
-            }
-        }
-        "TTL" if commands.len() > 1 => {
-            let key = &commands[1];
-            let storage = storage.read().await;
-            match storage.get(key) {
-                Some(ValueEntry {
-                    expiry: Some(expiry),
-                    ..
-                }) => {
-                    let remaining =
-                        expiry.saturating_duration_since(Instant::now()).as_secs() as i64;
-                    let response = format!(":{}\r\n", remaining);
-                    let _ = socket.write_all(response.as_bytes()).await;
-                }
-                Some(ValueEntry { expiry: None, .. }) => {
-                    // -1: permanent
-                    let _ = socket.write_all(b":-1\r\n").await;
-                }
-                None => {
-                    // -2: key not exist
-                    let _ = socket.write_all(b":-2\r\n").await;
-                }
-            }
-        }
-        _ => {
-            let _ = socket.write_all(b"-ERR Unknown command\r\n").await;
-        }
+    loop {
+        let cmd: Command = resp::parse_resp(&mut reader).await?.try_into()?;
+        let result = cmd.execute(&ctx).await?;
+        log::debug!("ctx {} execute result: {:?}", ctx.id, &result);
+        result.write_to(&mut writer).await?;
+        writer.flush().await?;
     }
 }
 

@@ -19,4 +19,7 @@ pub enum RespError {
 
     #[error("Integer parsing error")]
     ParseIntError(#[from] std::num::ParseIntError),
+
+    #[error("I/O error")]
+    Io(#[from] std::io::Error),
 }
