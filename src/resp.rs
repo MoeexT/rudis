@@ -1,10 +1,8 @@
-use anyhow::Result;
 use async_recursion::async_recursion;
+use thiserror::Error;
 use tokio::io::{AsyncBufReadExt, AsyncReadExt, AsyncWriteExt, BufReader, BufWriter};
 
-use crate::errors::RespError;
-
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub enum RespValue {
     SimpleString(String),
     Error(String),
@@ -14,6 +12,30 @@ pub enum RespValue {
     Null,
     Boolean(bool),
     Exit,
+}
+
+#[derive(Error, Debug)]
+pub enum RespError {
+    #[error("Empty data")]
+    EmptyData,
+
+    #[error("Invalid RESP format")]
+    InvalidFormat,
+
+    #[error("Unsupported RESP type")]
+    UnsupportedType,
+
+    #[error("UTF-8 conversion error")]
+    Utf8Error(#[from] std::str::Utf8Error),
+
+    #[error("String conversion error")]
+    FromUtf8Error(#[from] std::string::FromUtf8Error),
+
+    #[error("Integer parsing error")]
+    ParseIntError(#[from] std::num::ParseIntError),
+
+    #[error("I/O error")]
+    Io(#[from] std::io::Error),
 }
 
 #[async_recursion]
@@ -77,7 +99,7 @@ impl<'a> RespValue {
     /// Returns the error that `writer.write_all` returns
     ///
     #[async_recursion]
-    pub async fn write_to<W>(self, writer: &mut BufWriter<W>) -> Result<()>
+    pub async fn write_to<W>(self, writer: &mut BufWriter<W>) -> Result<(), RespError>
     where
         W: AsyncWriteExt + Unpin + Send,
     {
@@ -109,6 +131,35 @@ impl<'a> RespValue {
             _ => writer.write_all("-err\r\n".as_bytes()).await?,
         }
         Ok(())
+    }
+}
+
+impl Into<String> for RespValue {
+    fn into(self) -> String {
+        match self {
+            RespValue::SimpleString(s) => s,
+            RespValue::Error(e) => e,
+            RespValue::Integer(i) => i.to_string(),
+            RespValue::BulkString(items) => {
+                if let Some(items) = items {
+                    return String::from_utf8_lossy(&items).into_owned();
+                }
+                String::from("\"\"")
+            }
+            RespValue::Array(vals) => {
+                if let Some(vals) = vals {
+                    let mut res: Vec<String> = vec![];
+                    for val in vals.into_iter() {
+                        res.push(val.into());
+                    }
+                    return format!("[{}]", res.join(","));
+                }
+                String::from("[]")
+            }
+            RespValue::Null => "null".to_string(),
+            RespValue::Boolean(b) => b.to_string(),
+            RespValue::Exit => "exit".to_string(),
+        }
     }
 }
 

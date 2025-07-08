@@ -5,7 +5,7 @@ use tokio::time::Instant;
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub enum Object {
-    String(String),
+    String(Vec<u8>),
     List,
 }
 

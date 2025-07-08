@@ -1,32 +1,36 @@
+use std::{fmt::Debug, sync::Arc};
+
 use crate::{
-    command::{error::CommandError, list::ListCommand, string::StringCommand}, context::Context, resp::RespValue
+    command::{
+        error::CommandError,
+        registry::{COMMAND_REGISTRY, CommandHandler},
+    },
+    context::Context,
+    resp::RespValue,
 };
-use anyhow::Result;
+
 use async_trait::async_trait;
 
 pub mod error;
-pub mod list;
+pub mod registry;
 pub mod string;
 
 #[async_trait]
-pub trait CommandExecutor {
-    async fn execute(self, ctx: &Context) -> Result<RespValue>;
+pub trait CommandExecutor: Send + Sync + Debug {
+    async fn execute(self, ctx: Arc<Context>) -> Result<RespValue, CommandError>;
 }
 
 #[derive(Debug)]
-pub enum Command {
-    String(StringCommand),
-    List(ListCommand),
+pub struct Command {
+    handler: CommandHandler,
+    args: Vec<RespValue>,
 }
 
-/// Turns `RespValue` to `Command`
-impl TryFrom<RespValue> for Command {
-    type Error = CommandError;
-
-    fn try_from(value: RespValue) -> Result<Self, Self::Error> {
+impl Command {
+    pub async fn parse(value: RespValue) -> Result<Command, CommandError> {
         let args = match value {
             RespValue::Array(Some(arr)) => arr,
-            _ => return Err(CommandError::InvalidCommand("Expectd RESP Array".into())),
+            _ => return Err(CommandError::InvalidCommand("Expected RESP Array".into())),
         };
 
         let mut iter = args.into_iter();
@@ -36,33 +40,22 @@ impl TryFrom<RespValue> for Command {
         };
 
         let name_upper = name.to_ascii_uppercase();
-        let string_args: Vec<String> = iter
-            .filter_map(|val| {
-                if let RespValue::BulkString(Some(bytes)) = val {
-                    String::from_utf8(bytes).ok()
-                } else {
-                    None
-                }
+        let string_args: Vec<RespValue> = iter.collect();
+        let reg = COMMAND_REGISTRY.read().await;
+        if let Some(&handler) = reg.get(name_upper.as_str()) {
+            Ok(Command {
+                handler: handler,
+                args: string_args,
             })
-            .collect();
-
-        match name_upper.as_str() {
-            "GET" => Ok(Command::String(StringCommand::try_from((
-                name_upper,
-                string_args,
-            ))?)),
-            "SET" => Ok(Command::String(StringCommand::try_from((name_upper, string_args))?)),
-            _ => Err(CommandError::InvalidCommand(name_upper.into())),
+        } else {
+            Err(CommandError::InvalidCommand(name_upper.into()))
         }
     }
 }
 
 #[async_trait]
 impl CommandExecutor for Command {
-    async fn execute(self, ctx: &Context) -> Result<RespValue> {
-        match self {
-            Command::String(string) => string.execute(ctx).await,
-            Command::List(list) => list.execute(ctx).await,
-        }
+    async fn execute(self, ctx: Arc<Context>) -> Result<RespValue, CommandError> {
+        (self.handler)(ctx, self.args).await
     }
 }
