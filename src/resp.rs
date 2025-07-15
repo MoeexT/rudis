@@ -2,6 +2,8 @@ use async_recursion::async_recursion;
 use thiserror::Error;
 use tokio::io::{AsyncBufReadExt, AsyncReadExt, AsyncWriteExt, BufReader, BufWriter};
 
+use crate::storage::object::redis_object::RedisObject;
+
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum RespValue {
     SimpleString(String),

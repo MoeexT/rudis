@@ -7,10 +7,9 @@ use tokio::{
     sync::RwLock,
 };
 
-use crate::command::registry::do_register;
+use crate::{command::registry::do_register, storage::database::Database};
 use crate::{
     command::{Command, CommandExecutor},
-    storage::Database,
 };
 
 mod command;

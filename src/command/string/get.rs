@@ -7,7 +7,6 @@ use crate::{
     context::Context,
     register_redis_command,
     resp::RespValue,
-    storage::Object,
 };
 
 #[derive(Debug, PartialEq, Eq)]
@@ -41,14 +40,14 @@ impl CommandExecutor for GetCommand {
     async fn execute(self, ctx: Arc<Context>) -> Result<RespValue, CommandError> {
         let db = ctx.db.clone();
         let db = db.write().await;
-        log::info!(
+        log::debug!(
             "[string] ctx {} get {}",
             ctx.id,
             &self.key
         );
-        if let Some(Object::String(s)) = db.get(&self.key) {
+        if let Some(o) = db.get(&self.key) {
             log::debug!("value get: {}", &self.key);
-            Ok(RespValue::BulkString(Some(s)))
+            Ok(o.into())
         } else {
             Ok(RespValue::Null)
         }

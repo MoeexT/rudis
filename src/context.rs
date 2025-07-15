@@ -3,7 +3,8 @@ use std::sync::Arc;
 
 use tokio::sync::RwLock;
 
-use crate::storage::Database;
+use crate::storage::database::Database;
+
 
 /// Request context
 pub struct Context {

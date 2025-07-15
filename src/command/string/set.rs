@@ -6,8 +6,7 @@ use crate::{
     command::{error::CommandError, registry::CommandFuture, CommandExecutor},
     context::Context,
     register_redis_command,
-    resp::RespValue,
-    storage::Object,
+    resp::RespValue, storage::object::redis_object::RedisObject,
 };
 
 #[derive(Debug, PartialEq, Eq)]
@@ -43,13 +42,13 @@ impl CommandExecutor for SetCommand {
     async fn execute(self, ctx: Arc<Context>) -> Result<RespValue, CommandError> {
         let db = ctx.db.clone();
         let db = db.write().await;
-        log::info!(
+        log::debug!(
             "[string] ctx {} set {{{}: {:?}}}",
             ctx.id,
             &self.key,
             &self.value[..self.value.len().min(16)]
         );
-        db.set(self.key, Object::String(self.value), None);
+        db.set(self.key, RedisObject::new_string(self.value), None);
         log::debug!("value set");
         Ok(RespValue::Boolean(true))
     }
