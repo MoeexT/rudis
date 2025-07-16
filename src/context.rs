@@ -1,10 +1,8 @@
-
 use std::sync::Arc;
 
 use tokio::sync::RwLock;
 
 use crate::storage::database::Database;
-
 
 /// Request context
 pub struct Context {
@@ -14,9 +12,6 @@ pub struct Context {
 
 impl Context {
     pub fn new(id: usize, db: Arc<RwLock<Database>>) -> Self {
-        Self {
-            db,
-            id,
-        }
+        Self { db, id }
     }
 }

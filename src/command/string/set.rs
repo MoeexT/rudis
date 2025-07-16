@@ -61,6 +61,7 @@ pub async fn set_command(ctx: Arc<Context>, args: Vec<RespValue>) -> Result<Resp
 
 register_redis_command!("SET", set_command);
 
+#[cfg(test)]
 mod test {
     #[cfg(test)]
     use crate::{command::string::set::SetCommand, resp::RespValue};

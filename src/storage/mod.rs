@@ -1,3 +1,2 @@
-
-pub mod object;
 pub mod database;
+pub mod object;

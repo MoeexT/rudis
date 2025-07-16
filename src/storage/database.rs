@@ -5,7 +5,6 @@ use tokio::time::Instant;
 
 use crate::storage::object::redis_object::RedisObject;
 
-
 pub struct Database {
     id: usize,
     data: DashMap<String, RedisObject>,
@@ -57,20 +56,8 @@ impl Database {
         }
     }
 }
-// let storage_cleaner = storage.clone();
-// tokio::spawn(async move {
-//     let mut interval = tokio::time::interval(Duration::from_secs(5));
-//     loop {
-//         interval.tick().await;
-//         let mut storage = storage_cleaner.write().await;
-//         storage.retain(|key, entry|{
-//             entry.expiry.map(|expiry| {
-//                 log::debug!("Retain key: {key}");
-//                 return expiry > Instant::now();
-//             }).unwrap_or(true)
-//         });
-//     }
-// });
+
+#[cfg(test)]
 mod test {
     #[cfg(test)]
     use std::collections::HashMap;

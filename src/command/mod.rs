@@ -1,5 +1,7 @@
 use std::{fmt::Debug, sync::Arc};
 
+use async_trait::async_trait;
+
 use crate::{
     command::{
         error::CommandError,
@@ -8,8 +10,6 @@ use crate::{
     context::Context,
     resp::RespValue,
 };
-
-use async_trait::async_trait;
 
 pub mod error;
 pub mod registry;

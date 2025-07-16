@@ -1,16 +1,14 @@
-use anyhow::{Context, Result};
-use tokio::io::AsyncWriteExt;
 use std::{env, sync::Arc};
+
+use anyhow::{Context, Result};
 use tokio::{
-    io::{BufReader, BufWriter},
+    io::{AsyncWriteExt, BufReader, BufWriter},
     net::{TcpListener, TcpStream},
     sync::RwLock,
 };
 
+use crate::command::{Command, CommandExecutor};
 use crate::{command::registry::do_register, storage::database::Database};
-use crate::{
-    command::{Command, CommandExecutor},
-};
 
 mod command;
 mod context;

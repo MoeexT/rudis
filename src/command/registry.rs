@@ -4,10 +4,10 @@ use std::{
     sync::{Arc, Mutex},
 };
 
-use crate::{command::error::CommandError, context::Context, resp::RespValue};
-
 use once_cell::sync::Lazy;
 use tokio::sync::RwLock;
+
+use crate::{command::error::CommandError, context::Context, resp::RespValue};
 
 /// redis command handler
 pub type CommandHandler = fn(ctx: Arc<Context>, Vec<RespValue>) -> CommandFuture;

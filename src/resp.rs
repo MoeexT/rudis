@@ -2,8 +2,6 @@ use async_recursion::async_recursion;
 use thiserror::Error;
 use tokio::io::{AsyncBufReadExt, AsyncReadExt, AsyncWriteExt, BufReader, BufWriter};
 
-use crate::storage::object::redis_object::RedisObject;
-
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum RespValue {
     SimpleString(String),
@@ -166,15 +164,13 @@ impl Into<String> for RespValue {
 }
 
 #[cfg(test)]
-mod tests {
+mod test {
     #[cfg(test)]
     use crate::resp::{RespValue, parse_resp};
     #[cfg(test)]
     use std::vec;
     #[cfg(test)]
-    use tokio::io::BufReader;
-    #[cfg(test)]
-    use tokio::io::BufWriter;
+    use tokio::io::{BufReader, BufWriter};
 
     #[test]
     fn test() {

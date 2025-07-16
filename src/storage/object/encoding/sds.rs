@@ -1,4 +1,3 @@
-
 pub const EMB_LEN: usize = 54;
 
 #[derive(Debug, PartialEq, Eq, Clone)]
@@ -45,6 +44,7 @@ impl Into<Vec<u8>> for Raw {
     }
 }
 
+#[cfg(test)]
 mod test {
     #[cfg(test)]
     use std::mem;

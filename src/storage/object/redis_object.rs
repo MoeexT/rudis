@@ -2,7 +2,10 @@ use std::collections::{HashMap, HashSet};
 
 use modular_bitfield::{Specifier, bitfield, prelude::B24};
 
-use crate::{resp::RespValue, storage::object::encoding::sds::{self, EmbStr, Raw}};
+use crate::{
+    resp::RespValue,
+    storage::object::encoding::sds::{self, EmbStr, Raw},
+};
 
 #[derive(Specifier, Debug, PartialEq, Eq, Clone)]
 #[bits = 8]
@@ -64,13 +67,13 @@ impl RedisObject {
 impl Into<RespValue> for RedisObject {
     fn into(self) -> RespValue {
         match self.header.obj_type() {
-            ObjectType::String => {
-                match self.ptr {
-                    RedisValue::Int(i) => RespValue::BulkString(Some(i.to_string().as_bytes().to_vec())),
-                    RedisValue::EmbStr(emb_str) => RespValue::BulkString(Some(emb_str.into())),
-                    RedisValue::Raw(raw) => RespValue::BulkString(Some(raw.into())),
-                    _ => RespValue::Null,
+            ObjectType::String => match self.ptr {
+                RedisValue::Int(i) => {
+                    RespValue::BulkString(Some(i.to_string().as_bytes().to_vec()))
                 }
+                RedisValue::EmbStr(emb_str) => RespValue::BulkString(Some(emb_str.into())),
+                RedisValue::Raw(raw) => RespValue::BulkString(Some(raw.into())),
+                _ => RespValue::Null,
             },
             ObjectType::List => RespValue::Error("Not Implemented".to_string()),
             ObjectType::Hash => RespValue::Error("Not Implemented".to_string()),
@@ -80,7 +83,7 @@ impl Into<RespValue> for RedisObject {
     }
 }
 
-
+#[cfg(test)]
 mod test {
     #[cfg(test)]
     use crate::storage::object::{

@@ -61,6 +61,7 @@ pub async  fn get_command(ctx: Arc<Context>, args: Vec<RespValue>) -> Result<Res
 
 register_redis_command!("GET", get_command);
 
+#[cfg(test)]
 mod test {
     #[cfg(test)]
     use crate::{command::string::get::GetCommand, resp::RespValue};
