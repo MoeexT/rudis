@@ -54,11 +54,9 @@ impl CommandExecutor for SetCommand {
     }
 }
 
-pub fn set_command(ctx: Arc<Context>, args: Vec<RespValue>) -> CommandFuture {
-    Box::pin(async move {
-        let cmd: SetCommand = args.try_into()?;
-        cmd.execute(ctx).await
-    })
+pub async fn set_command(ctx: Arc<Context>, args: Vec<RespValue>) -> Result<RespValue, CommandError> {
+    let cmd: SetCommand = args.try_into()?;
+    cmd.execute(ctx).await
 }
 
 register_redis_command!("SET", set_command);

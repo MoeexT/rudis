@@ -54,11 +54,9 @@ impl CommandExecutor for GetCommand {
     }
 }
 
-pub fn get_command(ctx: Arc<Context>, args: Vec<RespValue>) -> CommandFuture {
-    Box::pin(async move {
-        let cmd: GetCommand = args.try_into()?;
-        cmd.execute(ctx).await
-    })
+pub async  fn get_command(ctx: Arc<Context>, args: Vec<RespValue>) -> Result<RespValue, CommandError> {
+    let cmd: GetCommand = args.try_into()?;
+    cmd.execute(ctx).await
 }
 
 register_redis_command!("GET", get_command);

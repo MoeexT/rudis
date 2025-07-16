@@ -12,38 +12,31 @@ use tokio::sync::RwLock;
 /// redis command handler
 pub type CommandHandler = fn(ctx: Arc<Context>, Vec<RespValue>) -> CommandFuture;
 
-pub type RegisterFuture = Pin<Box<dyn Future<Output = ()> + Send>>;
-
 /// redis command handler result
 pub type CommandFuture = Pin<Box<dyn Future<Output = Result<RespValue, CommandError>> + Send>>;
 
 /// global redis command registry
-pub static COMMAND_REGISTRY: Lazy<RwLock<HashMap<&'static str, CommandHandler>>> =
+pub static COMMAND_REGISTRY: Lazy<RwLock<HashMap<String, CommandHandler>>> =
     Lazy::new(|| RwLock::new(HashMap::new()));
 
-pub static PENDING_REGISTRATIONS: Lazy<Mutex<Vec<RegisterFuture>>> =
+pub static PENDING_REGISTRATIONS: Lazy<Mutex<Vec<(String, CommandHandler)>>> =
     Lazy::new(|| Mutex::new(Vec::new()));
 
-/// register a redis command to the registry
-pub async fn register_command(name: &'static str, handler: CommandHandler) {
-    let mut map = COMMAND_REGISTRY.write().await;
-    map.insert(name, handler);
-}
-
-pub fn en_register_queue(fut: RegisterFuture) {
+pub fn en_register_queue(cmd: &str, handler: CommandHandler) {
     let mut pending = PENDING_REGISTRATIONS.lock().unwrap();
-    pending.push(fut);
-    log::debug!("Pushed register future.")
+    pending.push((cmd.to_ascii_uppercase(), handler));
+    log::debug!("Pushed handler to register queue.")
 }
 
-/// Pool all registration futures, register all redis commands to COMMAND_REGISTRY
+/// Register all redis commands to COMMAND_REGISTRY
 pub async fn do_register() {
     let futures = {
         let mut locked = PENDING_REGISTRATIONS.lock().unwrap();
         std::mem::take(&mut *locked)
     };
-    for f in futures {
-        f.await;
+    let mut map = COMMAND_REGISTRY.write().await;
+    for (cmd, handler) in futures {
+        map.insert(cmd, handler);
     }
     log::debug!("All redis commands are registered.")
 }
@@ -55,9 +48,10 @@ macro_rules! register_redis_command {
         ::paste::item! {
             #[ctor::ctor]
             fn [<__register_command_ $cmd_name:lower>]() {
-                $crate::command::registry::en_register_queue(Box::pin(async {
-                    $crate::command::registry::register_command($cmd_name, $handler).await;
-                }));
+                fn wrapper(ctx: Arc<Context>, args: Vec<RespValue>) -> CommandFuture {
+                Box::pin($handler(ctx, args))
+                }
+                $crate::command::registry::en_register_queue($cmd_name, wrapper);
             }
         }
     };
