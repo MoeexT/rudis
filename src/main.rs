@@ -7,17 +7,23 @@ use tokio::{
     sync::RwLock,
 };
 
-use crate::command::{Command, CommandExecutor};
-use crate::{command::registry::do_register, storage::database::Database};
+use crate::{
+    command::{registry::do_register, Command, CommandExecutor},
+    config::init_config,
+    storage::database::Database,
+};
 
 mod command;
+mod config;
 mod context;
 mod errors;
 mod resp;
 mod storage;
+mod object;
 
 #[tokio::main]
 async fn main() -> Result<()> {
+    init_config();
     if env::var("RUST_LOG").is_err() {
         unsafe {
             env::set_var("RUST_LOG", "trace");

@@ -31,7 +31,7 @@ pub enum RespError {
     #[error("String conversion error")]
     FromUtf8Error(#[from] std::string::FromUtf8Error),
 
-    #[error("Integer parsing error")]
+    #[error("Value is not an integer or out of range")]
     ParseIntError(#[from] std::num::ParseIntError),
 
     #[error("I/O error")]
@@ -115,6 +115,7 @@ impl<'a> RespValue {
                 writer.write_all(&data).await?;
                 writer.write_all("\r\n".as_bytes()).await?;
             }
+            RespValue::BulkString(None) => writer.write_all("$0\r\n\r\n".as_bytes()).await?,
             RespValue::Array(Some(data)) => {
                 for v in data.into_iter() {
                     v.write_to(writer).await?;

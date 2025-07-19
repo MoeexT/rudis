@@ -1,11 +1,12 @@
-use std::collections::{HashMap, HashSet};
-
-use modular_bitfield::{Specifier, bitfield, prelude::B24};
-
-use crate::{
-    resp::RespValue,
-    storage::object::encoding::sds::{self, EmbStr, Raw},
+use std::{
+    collections::{HashMap, HashSet},
+    fmt::{Display, Formatter},
 };
+
+use modular_bitfield::{bitfield, prelude::B24, Specifier};
+
+use crate::resp::RespValue;
+use crate::object::encoding::sds::{self, EmbStr, Raw};
 
 #[derive(Specifier, Debug, PartialEq, Eq, Clone)]
 #[bits = 8]
@@ -15,6 +16,18 @@ pub enum ObjectType {
     Hash,
     Set,
     Zset,
+}
+
+impl Display for ObjectType {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        match self {
+            ObjectType::String => write!(f, "string"),
+            ObjectType::List => write!(f, "list"),
+            ObjectType::Hash => write!(f, "hash"),
+            ObjectType::Set => write!(f, "set"),
+            ObjectType::Zset => write!(f, "zset"),
+        }
+    }
 }
 
 #[bitfield(bytes = 8)]
@@ -44,8 +57,8 @@ pub enum RedisValue {
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct RedisObject {
-    header: ObjectHeader,
-    ptr: RedisValue,
+    pub header: ObjectHeader,
+    pub ptr: RedisValue,
 }
 
 impl RedisObject {
@@ -86,7 +99,7 @@ impl Into<RespValue> for RedisObject {
 #[cfg(test)]
 mod test {
     #[cfg(test)]
-    use crate::storage::object::{
+    use crate::object::{
         encoding::sds::{EmbStr, Raw},
         redis_object::{ObjectHeader, ObjectType, RedisObject, RedisValue},
     };

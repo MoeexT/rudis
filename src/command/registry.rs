@@ -48,8 +48,8 @@ macro_rules! register_redis_command {
         ::paste::item! {
             #[ctor::ctor]
             fn [<__register_command_ $cmd_name:lower>]() {
-                fn wrapper(ctx: Arc<Context>, args: Vec<RespValue>) -> CommandFuture {
-                Box::pin($handler(ctx, args))
+                fn wrapper(ctx: Arc<Context>, args: Vec<RespValue>) -> std::pin::Pin<Box<dyn Future<Output = Result<RespValue, CommandError>> + Send>> {
+                    Box::pin($handler(ctx, args))
                 }
                 $crate::command::registry::en_register_queue($cmd_name, wrapper);
             }

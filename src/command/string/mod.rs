@@ -1,2 +1,3 @@
-pub mod get;
-pub mod set;
+mod get;
+mod set;
+mod getrange;

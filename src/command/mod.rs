@@ -44,7 +44,7 @@ impl Command {
         let reg = COMMAND_REGISTRY.read().await;
         if let Some(&handler) = reg.get(name_upper.as_str()) {
             Ok(Command {
-                handler: handler,
+                handler,
                 args: string_args,
             })
         } else {
@@ -56,6 +56,9 @@ impl Command {
 #[async_trait]
 impl CommandExecutor for Command {
     async fn execute(self, ctx: Arc<Context>) -> Result<RespValue, CommandError> {
-        (self.handler)(ctx, self.args).await
+        match (self.handler)(ctx, self.args).await {
+            Ok(result) => Ok(result),
+            Err(error) => Ok(RespValue::Error(error.to_string())),
+        }
     }
 }

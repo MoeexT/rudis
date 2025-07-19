@@ -11,7 +11,7 @@ pub struct Raw {
     buf: Vec<u8>,
 }
 
-/// Create a embed string from bytes
+/// Create an embed string from bytes
 impl From<Vec<u8>> for EmbStr {
     fn from(value: Vec<u8>) -> Self {
         let len = value.len().min(EMB_LEN);
@@ -21,7 +21,7 @@ impl From<Vec<u8>> for EmbStr {
     }
 }
 
-/// Clone a embed string to bytes
+/// Clone an embed string to bytes
 impl Into<Vec<u8>> for EmbStr {
     fn into(self) -> Vec<u8> {
         let mut vec = Vec::new();
@@ -50,7 +50,7 @@ mod test {
     use std::mem;
 
     #[cfg(test)]
-    use crate::storage::object::encoding::sds::{EMB_LEN, EmbStr, Raw};
+    use crate::object::encoding::sds::{EMB_LEN, EmbStr, Raw};
 
     #[test]
     fn ensure_static_size() {

@@ -3,36 +3,43 @@ use std::sync::Arc;
 use async_trait::async_trait;
 
 use crate::{
-    command::{error::CommandError, registry::CommandFuture, CommandExecutor},
+    command::{error::CommandError, CommandExecutor},
+    config::get_config,
     context::Context,
     register_redis_command,
-    resp::RespValue, storage::object::redis_object::RedisObject,
+    resp::RespValue,
 };
+use crate::object::redis_object::RedisObject;
 
 #[derive(Debug, PartialEq, Eq)]
-pub struct SetCommand {
-    pub key: String,
-    pub value: Vec<u8>,
+struct SetCommand {
+    key: String,
+    value: Vec<u8>,
 }
 
 impl TryFrom<Vec<RespValue>> for SetCommand {
     type Error = CommandError;
 
-    fn try_from(mut value: Vec<RespValue>) -> Result<Self, CommandError> {
-        if value.len() != 2 {
-            return Err(CommandError::InvalidArguments(
-                "set".to_string(),
-                value.into_iter().map(|v| v.into()).collect(),
-            ));
-        }
+    fn try_from(values: Vec<RespValue>) -> Result<Self, CommandError> {
+        let [key, value]: [RespValue; 2] = values
+            .try_into()
+            .map_err(|_| CommandError::InvalidArgumentNumber("set".to_string()))?;
 
-        let (v, k) = (value.pop().unwrap(), value.pop().unwrap());
-        match (k, v) {
-            (RespValue::BulkString(Some(k)), RespValue::BulkString(Some(v))) => Ok(SetCommand {
-                key: String::from_utf8(k)?,
-                value: v,
-            }),
-            _ => Err(CommandError::InvalidArguments("set".to_string(), vec![])),
+        match (key, value) {
+            (RespValue::BulkString(Some(k)), RespValue::BulkString(Some(v))) => {
+                let config = get_config();
+                if v.len() > config.string_max_length {
+                    return Err(CommandError::SuperHugeString(
+                        v.len(),
+                        String::from_utf8_lossy(&k).into_owned(),
+                    ));
+                }
+                Ok(SetCommand {
+                    key: String::from_utf8(k)?,
+                    value: v,
+                })
+            }
+            _ => Err(CommandError::InvalidCommandFormat("set".to_string())),
         }
     }
 }
@@ -54,7 +61,10 @@ impl CommandExecutor for SetCommand {
     }
 }
 
-pub async fn set_command(ctx: Arc<Context>, args: Vec<RespValue>) -> Result<RespValue, CommandError> {
+pub async fn set_command(
+    ctx: Arc<Context>,
+    args: Vec<RespValue>,
+) -> Result<RespValue, CommandError> {
     let cmd: SetCommand = args.try_into()?;
     cmd.execute(ctx).await
 }
