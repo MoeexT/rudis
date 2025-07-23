@@ -7,19 +7,12 @@ use tokio::{
     sync::RwLock,
 };
 
-use crate::{
-    command::{registry::do_register, Command, CommandExecutor},
+use rudis::{
+    command::{Command, CommandExecutor, registry::do_register},
     config::init_config,
+    context, resp,
     storage::database::Database,
 };
-
-mod command;
-mod config;
-mod context;
-mod errors;
-mod resp;
-mod storage;
-mod object;
 
 #[tokio::main]
 async fn main() -> Result<()> {

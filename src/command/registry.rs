@@ -9,11 +9,15 @@ use tokio::sync::RwLock;
 
 use crate::{command::error::CommandError, context::Context, resp::RespValue};
 
+/// command handler return type
+pub type CommandResult = Result<RespValue, CommandError>;
+
+/// redis command handler result
+pub type CommandFuture = Pin<Box<dyn Future<Output = CommandResult> + Send>>;
+
 /// redis command handler
 pub type CommandHandler = fn(ctx: Arc<Context>, Vec<RespValue>) -> CommandFuture;
 
-/// redis command handler result
-pub type CommandFuture = Pin<Box<dyn Future<Output = Result<RespValue, CommandError>> + Send>>;
 
 /// global redis command registry
 pub static COMMAND_REGISTRY: Lazy<RwLock<HashMap<String, CommandHandler>>> =

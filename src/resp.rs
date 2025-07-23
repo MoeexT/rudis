@@ -1,3 +1,5 @@
+use std::fmt::Display;
+
 use async_recursion::async_recursion;
 use thiserror::Error;
 use tokio::io::{AsyncBufReadExt, AsyncReadExt, AsyncWriteExt, BufReader, BufWriter};
@@ -135,31 +137,33 @@ impl<'a> RespValue {
     }
 }
 
-impl Into<String> for RespValue {
-    fn into(self) -> String {
+impl Display for RespValue {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            RespValue::SimpleString(s) => s,
-            RespValue::Error(e) => e,
-            RespValue::Integer(i) => i.to_string(),
+            RespValue::SimpleString(s) => write!(f, "{}", s),
+            RespValue::Error(e) => write!(f, "{}", e),
+            RespValue::Integer(i) => write!(f, "{}", i),
             RespValue::BulkString(items) => {
                 if let Some(items) = items {
-                    return String::from_utf8_lossy(&items).into_owned();
+                    write!(f, "\"{}\"", String::from_utf8_lossy(&items))
+                } else {
+                    write!(f, "\"\"")
                 }
-                String::from("\"\"")
             }
             RespValue::Array(vals) => {
                 if let Some(vals) = vals {
-                    let mut res: Vec<String> = vec![];
+                    write!(f, "[")?;
                     for val in vals.into_iter() {
-                        res.push(val.into());
+                        val.fmt(f)?;
                     }
-                    return format!("[{}]", res.join(","));
+                    write!(f, "]")
+                } else {
+                    write!(f, "[]")
                 }
-                String::from("[]")
             }
-            RespValue::Null => "null".to_string(),
-            RespValue::Boolean(b) => b.to_string(),
-            RespValue::Exit => "exit".to_string(),
+            RespValue::Null => write!(f, "null"),
+            RespValue::Boolean(b) => write!(f, "{}", b),
+            RespValue::Exit => write!(f, "exit"),
         }
     }
 }

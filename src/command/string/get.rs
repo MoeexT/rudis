@@ -3,7 +3,7 @@ use std::sync::Arc;
 use async_trait::async_trait;
 
 use crate::{
-    command::{CommandExecutor, error::CommandError},
+    command::{CommandExecutor, error::CommandError, registry::CommandResult},
     context::Context,
     register_redis_command,
     resp::RespValue,
@@ -33,9 +33,9 @@ impl TryFrom<Vec<RespValue>> for GetCommand {
 
 #[async_trait]
 impl CommandExecutor for GetCommand {
-    async fn execute(self, ctx: Arc<Context>) -> Result<RespValue, CommandError> {
+    async fn execute(self, ctx: Arc<Context>) -> CommandResult {
         let db = ctx.db.clone();
-        let db = db.write().await;
+        let db = db.read().await;
         log::debug!("[string] ctx {} get {}", ctx.id, &self.key);
         if let Some(o) = db.get(&self.key) {
             log::debug!("value get: {}", &self.key);
@@ -46,10 +46,7 @@ impl CommandExecutor for GetCommand {
     }
 }
 
-pub async fn get_command(
-    ctx: Arc<Context>,
-    args: Vec<RespValue>,
-) -> Result<RespValue, CommandError> {
+pub async fn get_command(ctx: Arc<Context>, args: Vec<RespValue>) -> CommandResult {
     let cmd: GetCommand = args.try_into()?;
     cmd.execute(ctx).await
 }

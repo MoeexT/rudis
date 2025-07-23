@@ -2,13 +2,13 @@
 
 use async_trait::async_trait;
 
+use crate::object::redis_object::{ObjectType, RedisValue};
 use crate::{
-    command::{error::CommandError, CommandExecutor},
+    command::{CommandExecutor, error::CommandError, registry::CommandResult},
     context::Context,
     register_redis_command,
     resp::RespValue,
 };
-use crate::object::redis_object::{ObjectType, RedisValue};
 
 #[derive(Debug)]
 struct GetRangeCommand {
@@ -69,7 +69,7 @@ impl TryFrom<Vec<RespValue>> for GetRangeCommand {
 
 #[async_trait]
 impl CommandExecutor for GetRangeCommand {
-    async fn execute(self, ctx: Arc<Context>) -> Result<RespValue, CommandError> {
+    async fn execute(self, ctx: Arc<Context>) -> CommandResult {
         let db = ctx.db.clone();
         let db = db.read().await;
         log::debug!("Getting range for {}", &self.key);
@@ -95,10 +95,7 @@ impl CommandExecutor for GetRangeCommand {
     }
 }
 
-pub async fn getrange_command(
-    ctx: Arc<Context>,
-    args: Vec<RespValue>,
-) -> Result<RespValue, CommandError> {
+pub async fn getrange_command(ctx: Arc<Context>, args: Vec<RespValue>) -> CommandResult {
     let cmd: GetRangeCommand = args.try_into()?;
     cmd.execute(ctx).await
 }

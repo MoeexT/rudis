@@ -32,6 +32,6 @@ pub fn init_config() -> &'static Config {
     })
 }
 
-pub fn get_config() -> &'static Config {
+pub fn get_server_config() -> &'static Config {
     &CONFIG.get().expect("config hasn't been initialized")
 }

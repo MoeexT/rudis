@@ -2,14 +2,14 @@ use std::sync::Arc;
 
 use async_trait::async_trait;
 
+use crate::object::redis_object::RedisObject;
 use crate::{
-    command::{error::CommandError, CommandExecutor},
-    config::get_config,
+    command::{CommandExecutor, error::CommandError, registry::CommandResult},
+    config::get_server_config,
     context::Context,
     register_redis_command,
     resp::RespValue,
 };
-use crate::object::redis_object::RedisObject;
 
 #[derive(Debug, PartialEq, Eq)]
 struct SetCommand {
@@ -27,7 +27,7 @@ impl TryFrom<Vec<RespValue>> for SetCommand {
 
         match (key, value) {
             (RespValue::BulkString(Some(k)), RespValue::BulkString(Some(v))) => {
-                let config = get_config();
+                let config = get_server_config();
                 if v.len() > config.string_max_length {
                     return Err(CommandError::SuperHugeString(
                         v.len(),
@@ -46,7 +46,7 @@ impl TryFrom<Vec<RespValue>> for SetCommand {
 
 #[async_trait]
 impl CommandExecutor for SetCommand {
-    async fn execute(self, ctx: Arc<Context>) -> Result<RespValue, CommandError> {
+    async fn execute(self, ctx: Arc<Context>) -> CommandResult {
         let db = ctx.db.clone();
         let db = db.write().await;
         log::debug!(
@@ -61,10 +61,7 @@ impl CommandExecutor for SetCommand {
     }
 }
 
-pub async fn set_command(
-    ctx: Arc<Context>,
-    args: Vec<RespValue>,
-) -> Result<RespValue, CommandError> {
+pub async fn set_command(ctx: Arc<Context>, args: Vec<RespValue>) -> CommandResult {
     let cmd: SetCommand = args.try_into()?;
     cmd.execute(ctx).await
 }
