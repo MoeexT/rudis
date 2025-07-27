@@ -65,3 +65,31 @@ pub async fn getset_command(ctx: Arc<Context>, args: Vec<RespValue>) -> CommandR
 }
 
 register_redis_command!("GETSET", getset_command);
+
+#[cfg(test)]
+mod test {
+    use std::sync::Arc;
+
+    use mockall::mock;
+    use tokio::sync::RwLock;
+
+    use crate::{context::Context, object::redis_object::RedisObject};
+
+    mock! {
+        pub Database {
+            async fn get(&self, key: &str) -> Option<RedisObject>;
+            async fn set(&self, key: String, value: RedisObject, ttl: Option<std::time::Duration>);
+        }
+    }
+
+    #[tokio::test]
+    async fn test_execute_getset_command_on_origin_value_not_exist() {
+        let mut mock_db = MockDatabase::new();
+        let db= Arc::new(RwLock::new(mock_db));
+        let ctx = Arc::new(Context::new(0, db));
+
+        let key = "key".to_string();
+        let old_value = RedisObject::new_string("old string".as_bytes().to_vec());
+        let new_value = RedisObject::new_string("new string".as_bytes().to_vec());
+    }
+}
