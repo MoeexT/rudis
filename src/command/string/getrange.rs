@@ -1,12 +1,12 @@
 ﻿use std::{ops::Range, str::from_utf8, sync::Arc};
 
 use async_trait::async_trait;
+use rudis_macros::redis_command;
 
 use crate::object::redis_object::{ObjectType, RedisValue};
 use crate::{
     command::{CommandExecutor, error::CommandError, registry::CommandResult},
     context::Context,
-    register_redis_command,
     resp::RespValue,
 };
 
@@ -95,12 +95,11 @@ impl CommandExecutor for GetRangeCommand {
     }
 }
 
+#[redis_command("GETRANGE")]
 pub async fn getrange_command(ctx: Arc<Context>, args: Vec<RespValue>) -> CommandResult {
     let cmd: GetRangeCommand = args.try_into()?;
     cmd.execute(ctx).await
 }
-
-register_redis_command!("GETRANGE", getrange_command);
 
 #[cfg(test)]
 mod test {

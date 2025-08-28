@@ -1,13 +1,13 @@
 use std::sync::Arc;
 
 use async_trait::async_trait;
+use rudis_macros::redis_command;
 
 use crate::object::redis_object::RedisObject;
 use crate::{
     command::{CommandExecutor, error::CommandError, registry::CommandResult},
     config::get_server_config,
     context::Context,
-    register_redis_command,
     resp::RespValue,
 };
 
@@ -61,12 +61,11 @@ impl CommandExecutor for SetCommand {
     }
 }
 
+#[redis_command("SET")]
 pub async fn set_command(ctx: Arc<Context>, args: Vec<RespValue>) -> CommandResult {
     let cmd: SetCommand = args.try_into()?;
     cmd.execute(ctx).await
 }
-
-register_redis_command!("SET", set_command);
 
 #[cfg(test)]
 mod test {

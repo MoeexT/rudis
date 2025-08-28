@@ -1,11 +1,11 @@
 use std::sync::Arc;
 
 use async_trait::async_trait;
+use rudis_macros::redis_command;
 
 use crate::{
     command::{CommandExecutor, error::CommandError, registry::CommandResult},
     context::Context,
-    register_redis_command,
     resp::RespValue,
 };
 
@@ -46,12 +46,11 @@ impl CommandExecutor for GetCommand {
     }
 }
 
+#[redis_command("GET")]
 pub async fn get_command(ctx: Arc<Context>, args: Vec<RespValue>) -> CommandResult {
     let cmd: GetCommand = args.try_into()?;
     cmd.execute(ctx).await
 }
-
-register_redis_command!("GET", get_command);
 
 #[cfg(test)]
 mod test {
