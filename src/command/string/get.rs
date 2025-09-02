@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use async_trait::async_trait;
-use rudis_macros::redis_command;
+use rudis_macros::CommandHandler;
 
 use crate::{
     command::{CommandExecutor, error::CommandError, registry::CommandResult},
@@ -9,26 +9,10 @@ use crate::{
     resp::RespValue,
 };
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq, CommandHandler)]
+#[command("GET")]
 struct GetCommand {
     key: String,
-}
-
-impl TryFrom<Vec<RespValue>> for GetCommand {
-    type Error = CommandError;
-
-    fn try_from(values: Vec<RespValue>) -> Result<Self, CommandError> {
-        let [key]: [RespValue; 1] = values
-            .try_into()
-            .map_err(|_| CommandError::InvalidArgumentNumber("get".to_string()))?;
-
-        match key {
-            RespValue::BulkString(Some(k)) => Ok(GetCommand {
-                key: String::from_utf8(k)?,
-            }),
-            _ => Err(CommandError::InvalidCommandFormat("get".to_string())),
-        }
-    }
 }
 
 #[async_trait]
@@ -44,12 +28,6 @@ impl CommandExecutor for GetCommand {
             Ok(RespValue::Null)
         }
     }
-}
-
-#[redis_command("GET")]
-pub async fn get_command(ctx: Arc<Context>, args: Vec<RespValue>) -> CommandResult {
-    let cmd: GetCommand = args.try_into()?;
-    cmd.execute(ctx).await
 }
 
 #[cfg(test)]

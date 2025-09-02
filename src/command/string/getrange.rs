@@ -1,7 +1,7 @@
-﻿use std::{ops::Range, str::from_utf8, sync::Arc};
+﻿use std::{ops::Range, sync::Arc};
 
 use async_trait::async_trait;
-use rudis_macros::redis_command;
+use rudis_macros::CommandHandler;
 
 use crate::object::redis_object::{ObjectType, RedisValue};
 use crate::{
@@ -10,7 +10,8 @@ use crate::{
     resp::RespValue,
 };
 
-#[derive(Debug)]
+#[derive(Debug, CommandHandler)]
+#[command("GETRANGE")]
 struct GetRangeCommand {
     key: String,
     start: i64,
@@ -31,39 +32,6 @@ fn get_range(len: usize, start: i64, end: i64) -> Option<Range<usize>> {
         Some(start..end + 1)
     } else {
         None
-    }
-}
-
-impl TryFrom<Vec<RespValue>> for GetRangeCommand {
-    type Error = CommandError;
-
-    fn try_from(value: Vec<RespValue>) -> Result<Self, Self::Error> {
-        let [key, start, end]: [RespValue; 3] = value
-            .try_into()
-            .map_err(|_| CommandError::InvalidArgumentNumber("getrange".to_string()))?;
-
-        let (RespValue::BulkString(Some(start)), RespValue::BulkString(Some(end))) = (start, end)
-        else {
-            return Err(CommandError::InvalidArgumentFormat("getrange".to_string()));
-        };
-
-        let start = from_utf8(&start)
-            .map_err(|e| CommandError::Utf8Error(e))?
-            .parse::<i64>()
-            .map_err(|e| CommandError::ParseIntError(e))?;
-        let end = from_utf8(&end)
-            .map_err(|e| CommandError::Utf8Error(e))?
-            .parse::<i64>()
-            .map_err(|e| CommandError::ParseIntError(e))?;
-
-        match key {
-            RespValue::BulkString(Some(key)) => Ok(GetRangeCommand {
-                key: String::from_utf8(key)?,
-                start,
-                end,
-            }),
-            _ => Err(CommandError::InvalidCommandFormat("getrange".to_string())),
-        }
     }
 }
 
@@ -93,12 +61,6 @@ impl CommandExecutor for GetRangeCommand {
             Ok(RespValue::BulkString(None))
         }
     }
-}
-
-#[redis_command("GETRANGE")]
-pub async fn getrange_command(ctx: Arc<Context>, args: Vec<RespValue>) -> CommandResult {
-    let cmd: GetRangeCommand = args.try_into()?;
-    cmd.execute(ctx).await
 }
 
 #[cfg(test)]

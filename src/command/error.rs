@@ -9,8 +9,8 @@ pub enum CommandError {
     #[error("Invalid format for `{0}` command")]
     InvalidCommandFormat(String),
 
-    #[error("Wrong number of arguments for `{0}` command")]
-    InvalidArgumentNumber(String),
+    #[error("Wrong number of arguments for `{0}` command, expect {1} value(s)")]
+    InvalidArgumentNumber(String, usize),
     
     #[error("Wrong format for `{0}` argument")]
     InvalidArgumentFormat(String),
@@ -24,9 +24,12 @@ pub enum CommandError {
     #[error("UTF-8 error: {0}")]
     Utf8Error(#[from] std::str::Utf8Error),
 
-    #[error("UTF-8 error: {0}")]
+    #[error("From UTF-8 error: {0}")]
     FromUtf8Error(#[from] std::string::FromUtf8Error),
 
     #[error("Value is not an integer or out of range")]
     ParseIntError(#[from] core::num::ParseIntError),
+
+    #[error("RESP conversion error: {0}")]
+    RespConversionError(#[from] crate::resp::RespError),
 }

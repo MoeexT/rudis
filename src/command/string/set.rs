@@ -1,47 +1,20 @@
 use std::sync::Arc;
 
 use async_trait::async_trait;
-use rudis_macros::redis_command;
+use rudis_macros::CommandHandler;
 
 use crate::object::redis_object::RedisObject;
 use crate::{
     command::{CommandExecutor, error::CommandError, registry::CommandResult},
-    config::get_server_config,
     context::Context,
     resp::RespValue,
 };
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq, CommandHandler)]
+#[command("SET")]
 struct SetCommand {
     key: String,
     value: Vec<u8>,
-}
-
-impl TryFrom<Vec<RespValue>> for SetCommand {
-    type Error = CommandError;
-
-    fn try_from(values: Vec<RespValue>) -> Result<Self, CommandError> {
-        let [key, value]: [RespValue; 2] = values
-            .try_into()
-            .map_err(|_| CommandError::InvalidArgumentNumber("set".to_string()))?;
-
-        match (key, value) {
-            (RespValue::BulkString(Some(k)), RespValue::BulkString(Some(v))) => {
-                let config = get_server_config();
-                if v.len() > config.string_max_length {
-                    return Err(CommandError::SuperHugeString(
-                        v.len(),
-                        String::from_utf8_lossy(&k).into_owned(),
-                    ));
-                }
-                Ok(SetCommand {
-                    key: String::from_utf8(k)?,
-                    value: v,
-                })
-            }
-            _ => Err(CommandError::InvalidCommandFormat("set".to_string())),
-        }
-    }
 }
 
 #[async_trait]
@@ -59,12 +32,6 @@ impl CommandExecutor for SetCommand {
         log::debug!("value set");
         Ok(RespValue::Boolean(true))
     }
-}
-
-#[redis_command("SET")]
-pub async fn set_command(ctx: Arc<Context>, args: Vec<RespValue>) -> CommandResult {
-    let cmd: SetCommand = args.try_into()?;
-    cmd.execute(ctx).await
 }
 
 #[cfg(test)]

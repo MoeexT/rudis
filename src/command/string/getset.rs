@@ -1,47 +1,20 @@
 use std::sync::Arc;
 
 use async_trait::async_trait;
-use rudis_macros::redis_command;
+use rudis_macros::CommandHandler;
 
 use crate::{
     command::{CommandExecutor, error::CommandError, registry::CommandResult},
-    config::get_server_config,
     context::Context,
     object::redis_object::RedisObject,
     resp::RespValue,
 };
 
-#[derive(Debug)]
+#[derive(Debug, CommandHandler)]
+#[command("GETSET")]
 struct GetSetCommand {
     key: String,
     value: Vec<u8>,
-}
-
-impl TryFrom<Vec<RespValue>> for GetSetCommand {
-    type Error = CommandError;
-
-    fn try_from(values: Vec<RespValue>) -> Result<Self, Self::Error> {
-        let [key, value]: [RespValue; 2] = values
-            .try_into()
-            .map_err(|_| CommandError::InvalidArgumentNumber("getset".to_string()))?;
-
-        match (key, value) {
-            (RespValue::BulkString(Some(key)), RespValue::BulkString(Some(value))) => {
-                let config = get_server_config();
-                if value.len() > config.string_max_length {
-                    return Err(CommandError::SuperHugeString(
-                        value.len(),
-                        "getset".to_string(),
-                    ));
-                }
-                Ok(GetSetCommand {
-                    key: String::from_utf8(key)?,
-                    value,
-                })
-            }
-            _ => Err(CommandError::InvalidArgumentFormat("getset".to_string())),
-        }
-    }
 }
 
 #[async_trait]
@@ -57,10 +30,4 @@ impl CommandExecutor for GetSetCommand {
             Ok(RespValue::Null)
         }
     }
-}
-
-#[redis_command("GETSET")]
-pub async fn getset_command(ctx: Arc<Context>, args: Vec<RespValue>) -> CommandResult {
-    let cmd: GetSetCommand = args.try_into()?;
-    cmd.execute(ctx).await
 }
