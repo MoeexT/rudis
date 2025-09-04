@@ -1,17 +1,16 @@
 use std::sync::Arc;
 
 use async_trait::async_trait;
-use rudis_macros::CommandHandler;
+use rudis_macros::register;
 
 use crate::{
-    command::{CommandExecutor, error::CommandError, registry::CommandResult},
+    command::{CommandExecutor, registry::CommandResult},
     context::Context,
     object::redis_object::RedisObject,
     resp::RespValue,
 };
 
-#[derive(Debug, CommandHandler)]
-#[command("GETSET")]
+#[register("GETSET")]
 struct GetSetCommand {
     key: String,
     value: Vec<u8>,

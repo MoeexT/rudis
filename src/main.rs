@@ -54,7 +54,17 @@ async fn handle_socket(socket: TcpStream, context: Arc<context::Context>) -> Res
         let ctx = context.clone();
         let cid = ctx.id;
         let resp = resp::parse_resp(&mut reader).await?;
-        let result = Command::parse(resp).await?.execute(ctx).await?;
+        let command = match Command::parse(resp).await {
+            Ok(cmd) => cmd,
+            Err(e) => {
+                log::error!("ctx {} parse command error: {:?}", cid, e);
+                let err: resp::RespValue = resp::RespValue::Error(e.to_string());
+                err.write_to(&mut writer).await?;
+                writer.flush().await?;
+                continue;
+            }
+        };
+        let result = command.execute(ctx).await?;
         log::debug!("ctx {} execute result: {:?}", cid, &result);
         result.write_to(&mut writer).await?;
         writer.flush().await?;

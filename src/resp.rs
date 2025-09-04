@@ -42,12 +42,12 @@ pub enum RespError {
 
 // 通用的 RespValue 转换 trait
 pub trait FromRespValue: Sized {
-    fn from_resp_value(value: RespValue, command_name: &str) -> Result<Self, RespError>;
+    fn from_resp_value(value: RespValue) -> Result<Self, RespError>;
 }
 
 // 为 String 实现转换
 impl FromRespValue for String {
-    fn from_resp_value(value: RespValue, command_name: &str) -> Result<Self, RespError> {
+    fn from_resp_value(value: RespValue) -> Result<Self, RespError> {
         match value {
             RespValue::SimpleString(s) => Ok(s),
             RespValue::BulkString(Some(bytes)) => String::from_utf8(bytes)
@@ -59,7 +59,7 @@ impl FromRespValue for String {
 
 // 为 i64 实现转换
 impl FromRespValue for i64 {
-    fn from_resp_value(value: RespValue, command_name: &str) -> Result<Self, RespError> {
+    fn from_resp_value(value: RespValue) -> Result<Self, RespError> {
         match value {
             RespValue::Integer(num) => Ok(num),
             RespValue::BulkString(Some(bytes)) => {
@@ -74,7 +74,7 @@ impl FromRespValue for i64 {
 
 // 为 bool 实现转换
 impl FromRespValue for bool {
-    fn from_resp_value(value: RespValue, command_name: &str) -> Result<Self, RespError> {
+    fn from_resp_value(value: RespValue) -> Result<Self, RespError> {
         match value {
             RespValue::Integer(0) => Ok(false),
             RespValue::Integer(1) => Ok(true),
@@ -86,7 +86,7 @@ impl FromRespValue for bool {
 }
 
 impl FromRespValue for Vec<u8> {
-    fn from_resp_value(value: RespValue, command_name: &str) -> Result<Self, RespError> {
+    fn from_resp_value(value: RespValue) -> Result<Self, RespError> {
         match value {
             RespValue::BulkString(Some(bytes)) => Ok(bytes),
             _ => Err(RespError::InvalidFormat),

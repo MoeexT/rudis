@@ -14,6 +14,7 @@ use crate::{
 pub mod error;
 pub mod registry;
 pub mod string;
+pub mod connection;
 
 #[async_trait]
 pub trait CommandExecutor: Send + Sync + Debug {

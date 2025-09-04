@@ -1,16 +1,16 @@
 use std::sync::Arc;
 
 use async_trait::async_trait;
-use rudis_macros::CommandHandler;
+use rudis_macros::register;
 
 use crate::{
-    command::{CommandExecutor, error::CommandError, registry::CommandResult},
+    command::{CommandExecutor, registry::CommandResult},
     context::Context,
     resp::RespValue,
 };
 
-#[derive(Debug, PartialEq, Eq, CommandHandler)]
-#[command("GET")]
+#[derive(PartialEq, Eq)]
+#[register("GET")]
 struct GetCommand {
     key: String,
 }

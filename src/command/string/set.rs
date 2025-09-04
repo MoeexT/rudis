@@ -1,17 +1,17 @@
 use std::sync::Arc;
 
 use async_trait::async_trait;
-use rudis_macros::CommandHandler;
+use rudis_macros::register;
 
 use crate::object::redis_object::RedisObject;
 use crate::{
-    command::{CommandExecutor, error::CommandError, registry::CommandResult},
+    command::{CommandExecutor, registry::CommandResult},
     context::Context,
     resp::RespValue,
 };
 
-#[derive(Debug, PartialEq, Eq, CommandHandler)]
-#[command("SET")]
+#[derive(PartialEq, Eq)]
+#[register("SET")]
 struct SetCommand {
     key: String,
     value: Vec<u8>,
