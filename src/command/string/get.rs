@@ -1,22 +1,22 @@
 use std::sync::Arc;
 
 use async_trait::async_trait;
-use rudis_macros::register;
+use rudis_macros::command;
 
 use crate::{
     command::{CommandExecutor, registry::CommandResult},
     context::Context,
-    resp::RespValue,
+    protocol::Frame,
 };
 
 #[derive(PartialEq, Eq)]
-#[register("GET")]
-struct GetCommand {
+#[command]
+struct Get {
     key: String,
 }
 
 #[async_trait]
-impl CommandExecutor for GetCommand {
+impl CommandExecutor for Get {
     async fn execute(self, ctx: Arc<Context>) -> CommandResult {
         let db = ctx.db.clone();
         let db = db.read().await;
@@ -25,23 +25,25 @@ impl CommandExecutor for GetCommand {
             log::debug!("value get: {}", &self.key);
             Ok(o.into())
         } else {
-            Ok(RespValue::Null)
+            Ok(Frame::Null)
         }
     }
 }
 
 #[cfg(test)]
 mod test {
+    use crate::command::parser::Parser;
     #[cfg(test)]
-    use crate::{command::string::get::GetCommand, resp::RespValue};
+    use crate::{command::string::get::Get, protocol::Frame};
 
     #[test]
-    fn test_try_from_resp_to_set_ok() {
-        let value = vec![RespValue::BulkString(Some("key".as_bytes().to_vec()))];
-        let result: GetCommand = value.try_into().unwrap();
+    fn test_try_from_frame_to_set_ok() {
+        let value = vec![Frame::BulkString(Some("key".as_bytes().to_vec()))];
+        let value = Parser::new(Frame::Array(Some(value))).unwrap();
+        let result: Get = value.try_into().unwrap();
         assert_eq!(
             result,
-            GetCommand {
+            Get {
                 key: "key".to_string(),
             }
         )

@@ -1,17 +1,17 @@
 use std::sync::Arc;
 
 use async_trait::async_trait;
-use rudis_macros::register;
+use rudis_macros::command;
 
 use crate::object::redis_object::RedisObject;
 use crate::{
     command::{CommandExecutor, registry::CommandResult},
     context::Context,
-    resp::RespValue,
+    protocol::Frame,
 };
 
 #[derive(PartialEq, Eq)]
-#[register("SET")]
+#[command("SET")]
 struct SetCommand {
     key: String,
     value: Vec<u8>,
@@ -30,21 +30,23 @@ impl CommandExecutor for SetCommand {
         );
         db.set(self.key, RedisObject::new_string(self.value), None);
         log::debug!("value set");
-        Ok(RespValue::Boolean(true))
+        Ok(Frame::Boolean(true))
     }
 }
 
 #[cfg(test)]
 mod test {
+    use crate::command::parser::Parser;
     #[cfg(test)]
-    use crate::{command::string::set::SetCommand, resp::RespValue};
+    use crate::{command::string::set::SetCommand, protocol::Frame};
 
     #[test]
-    fn test_try_from_resp_to_set_ok() {
+    fn test_try_from_frame_to_set_ok() {
         let value = vec![
-            RespValue::BulkString(Some("set".as_bytes().to_vec())),
-            RespValue::BulkString(Some("key".as_bytes().to_vec())),
+            Frame::BulkString(Some("set".as_bytes().to_vec())),
+            Frame::BulkString(Some("key".as_bytes().to_vec())),
         ];
+        let value = Parser::new(Frame::Array(Some(value))).unwrap();
         let result: SetCommand = value.try_into().unwrap();
         assert_eq!(
             result,

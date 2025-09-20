@@ -1,16 +1,16 @@
 use std::sync::Arc;
 
 use async_trait::async_trait;
-use rudis_macros::register;
+use rudis_macros::command;
 
 use crate::{
     command::{CommandExecutor, registry::CommandResult},
     context::Context,
     object::redis_object::RedisObject,
-    resp::RespValue,
+    protocol::Frame,
 };
 
-#[register("GETSET")]
+#[command("GETSET")]
 struct GetSetCommand {
     key: String,
     value: Vec<u8>,
@@ -26,7 +26,7 @@ impl CommandExecutor for GetSetCommand {
             Ok(origin_val.into())
         } else {
             db.set(self.key, RedisObject::new_string(self.value), None);
-            Ok(RespValue::Null)
+            Ok(Frame::Null)
         }
     }
 }

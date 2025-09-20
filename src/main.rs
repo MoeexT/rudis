@@ -10,7 +10,7 @@ use tokio::{
 use rudis::{
     command::{Command, CommandExecutor, registry::do_register},
     config::init_config,
-    context, resp,
+    context, protocol,
     storage::database::Database,
 };
 
@@ -53,12 +53,12 @@ async fn handle_socket(socket: TcpStream, context: Arc<context::Context>) -> Res
     loop {
         let ctx = context.clone();
         let cid = ctx.id;
-        let resp = resp::parse_resp(&mut reader).await?;
-        let command = match Command::parse(resp).await {
+        let frame = protocol::parse(&mut reader).await?;
+        let command = match Command::parse(frame).await {
             Ok(cmd) => cmd,
             Err(e) => {
                 log::error!("ctx {} parse command error: {:?}", cid, e);
-                let err: resp::RespValue = resp::RespValue::Error(e.to_string());
+                let err: protocol::Frame = protocol::Frame::Error(e.to_string());
                 err.write_to(&mut writer).await?;
                 writer.flush().await?;
                 continue;

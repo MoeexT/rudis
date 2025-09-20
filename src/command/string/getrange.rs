@@ -1,16 +1,16 @@
 ﻿use std::{ops::Range, sync::Arc};
 
 use async_trait::async_trait;
-use rudis_macros::register;
+use rudis_macros::command;
 
 use crate::object::redis_object::{ObjectType, RedisValue};
 use crate::{
     command::{CommandExecutor, error::CommandError, registry::CommandResult},
     context::Context,
-    resp::RespValue,
+    protocol::Frame,
 };
 
-#[register("GETRANGE")]
+#[command("GETRANGE")]
 struct GetRangeCommand {
     key: String,
     start: i64,
@@ -52,12 +52,12 @@ impl CommandExecutor for GetRangeCommand {
                 _ => Vec::new(),
             };
             if let Some(range) = get_range(bytes.len(), self.start, self.end) {
-                Ok(RespValue::BulkString(Some(bytes[range].to_vec())))
+                Ok(Frame::BulkString(Some(bytes[range].to_vec())))
             } else {
-                Ok(RespValue::BulkString(None))
+                Ok(Frame::BulkString(None))
             }
         } else {
-            Ok(RespValue::BulkString(None))
+            Ok(Frame::BulkString(None))
         }
     }
 }

@@ -29,7 +29,4 @@ pub enum CommandError {
 
     #[error("Value is not an integer or out of range")]
     ParseIntError(#[from] core::num::ParseIntError),
-
-    #[error("RESP conversion error: {0}")]
-    RespConversionError(#[from] crate::resp::RespError),
 }

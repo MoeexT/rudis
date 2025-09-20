@@ -1,19 +1,19 @@
 use std::sync::Arc;
 
 use async_trait::async_trait;
-use rudis_macros::register;
+use rudis_macros::command;
 
 use crate::{
     command::{CommandExecutor, registry::CommandResult},
-    resp::RespValue,
+    protocol::Frame,
 };
 
-#[register("PING")]
+#[command("PING")]
 struct PingCommand;
 
 #[async_trait]
 impl CommandExecutor for PingCommand {
     async fn execute(self, _ctx: Arc<crate::context::Context>) -> CommandResult {
-        Ok(RespValue::SimpleString("PONG".to_string()))
+        Ok(Frame::SimpleString("PONG".to_string()))
     }
 }

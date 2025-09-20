@@ -7,16 +7,16 @@ use std::{
 use once_cell::sync::Lazy;
 use tokio::sync::RwLock;
 
-use crate::{command::error::CommandError, context::Context, resp::RespValue};
+use crate::{command::{error::CommandError, parser::Parser}, context::Context, protocol::Frame};
 
 /// command handler return type
-pub type CommandResult = Result<RespValue, CommandError>;
+pub type CommandResult = Result<Frame, CommandError>;
 
 /// redis command handler result
 pub type CommandFuture = Pin<Box<dyn Future<Output = CommandResult> + Send>>;
 
 /// redis command handler
-pub type CommandHandler = fn(ctx: Arc<Context>, Vec<RespValue>) -> CommandFuture;
+pub type CommandHandler = fn(ctx: Arc<Context>, Parser) -> CommandFuture;
 
 
 /// global redis command registry
@@ -52,7 +52,7 @@ macro_rules! register_redis_command {
         ::paste::item! {
             #[ctor::ctor]
             fn [<__register_command_ $cmd_name:lower>]() {
-                fn wrapper(ctx: Arc<Context>, args: Vec<RespValue>) -> std::pin::Pin<Box<dyn Future<Output = Result<RespValue, CommandError>> + Send>> {
+                fn wrapper(ctx: Arc<Context>, args: Vec<Frame>) -> std::pin::Pin<Box<dyn Future<Output = Result<Frame, CommandError>> + Send>> {
                     Box::pin($handler(ctx, args))
                 }
                 $crate::command::registry::en_register_queue($cmd_name, wrapper);

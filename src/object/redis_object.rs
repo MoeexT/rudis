@@ -5,7 +5,7 @@ use std::{
 
 use modular_bitfield::{bitfield, prelude::B24, Specifier};
 
-use crate::resp::RespValue;
+use crate::protocol::Frame;
 use crate::object::encoding::sds::{self, EmbStr, Raw};
 
 #[derive(Specifier, Debug, PartialEq, Eq, Clone)]
@@ -77,21 +77,21 @@ impl RedisObject {
     }
 }
 
-impl Into<RespValue> for RedisObject {
-    fn into(self) -> RespValue {
+impl Into<Frame> for RedisObject {
+    fn into(self) -> Frame {
         match self.header.obj_type() {
             ObjectType::String => match self.ptr {
                 RedisValue::Int(i) => {
-                    RespValue::BulkString(Some(i.to_string().as_bytes().to_vec()))
+                    Frame::BulkString(Some(i.to_string().as_bytes().to_vec()))
                 }
-                RedisValue::EmbStr(emb_str) => RespValue::BulkString(Some(emb_str.into())),
-                RedisValue::Raw(raw) => RespValue::BulkString(Some(raw.into())),
-                _ => RespValue::Null,
+                RedisValue::EmbStr(emb_str) => Frame::BulkString(Some(emb_str.into())),
+                RedisValue::Raw(raw) => Frame::BulkString(Some(raw.into())),
+                _ => Frame::Null,
             },
-            ObjectType::List => RespValue::Error("Not Implemented".to_string()),
-            ObjectType::Hash => RespValue::Error("Not Implemented".to_string()),
-            ObjectType::Set => RespValue::Error("Not Implemented".to_string()),
-            ObjectType::Zset => RespValue::Error("Not Implemented".to_string()),
+            ObjectType::List => Frame::Error("Not Implemented".to_string()),
+            ObjectType::Hash => Frame::Error("Not Implemented".to_string()),
+            ObjectType::Set => Frame::Error("Not Implemented".to_string()),
+            ObjectType::Zset => Frame::Error("Not Implemented".to_string()),
         }
     }
 }
