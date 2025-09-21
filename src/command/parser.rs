@@ -31,25 +31,19 @@ impl Parser {
         }
     }
 
-    pub fn next_string(&mut self) -> Result<String, CommandError> {
-        self.next()
-    }
-    pub fn next_int(&mut self) -> Result<i64, CommandError> {
-        self.next()
+    pub fn len(&self) -> usize {
+        self.parts.len()
     }
 
-    pub fn next_bytes(&mut self) -> Result<Vec<u8>, CommandError> {
-        self.next()
+    pub fn next_pair<T>(&mut self) -> Result<(String, T), CommandError>
+    where
+        T: TryFrom<Frame, Error = CommandError>,
+    {
+        let key: String = self.next()?;
+        let value: T = self.next()?;
+        Ok((key, value))
     }
-
-    pub fn next_bool(&mut self) -> Result<bool, CommandError> {
-        self.next()
-    }
-
-    pub fn has_next(&self) -> bool {
-        self.cursor < self.parts.len()
-    }
-
+    
     pub fn next<T>(&mut self) -> Result<T, CommandError>
     where
         T: TryFrom<Frame, Error = CommandError>,
@@ -65,8 +59,8 @@ impl Parser {
         part.try_into()
     }
 
-    pub fn len(&self) -> usize {
-        self.parts.len()
+    pub fn has_next(&self) -> bool {
+        self.cursor < self.parts.len()
     }
 }
 

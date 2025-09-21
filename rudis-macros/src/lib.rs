@@ -2,9 +2,9 @@ extern crate proc_macro;
 
 use proc_macro::TokenStream;
 use quote::quote;
-use syn::{ItemStruct, parse_macro_input};
+use syn::{Data, DeriveInput, LitStr, parse_macro_input};
 
-use crate::command_handler::{CommandAttr, generate_command_handler, generate_from_parse_impl};
+use crate::command_handler::{generate_command_handler, generate_from_parse_impl};
 
 mod command_handler;
 
@@ -74,30 +74,40 @@ mod command_handler;
 /// - This macro assumes that the command executor will implement the `CommandExecutor` trait with an
 /// `execute` method that takes `self` and a `Context` and returns a `CommandResult`.
 /// - This macro is designed to work with the existing command registration system in `rudis`.
-#[proc_macro_attribute]
-pub fn command(attr: TokenStream, item: TokenStream) -> TokenStream {
-    let args = parse_macro_input!(attr as CommandAttr);
-    let input = parse_macro_input!(item as ItemStruct);
-    let struct_name = &input.ident;
-    let command_name = if &args.command_name == "" {
-        &struct_name.to_string().to_uppercase()
-    } else {
-        &args.command_name
+#[proc_macro_derive(Command, attributes(command, arg))]
+pub fn command(input: TokenStream) -> TokenStream {
+    let input_ast = parse_macro_input!(input as DeriveInput);
+    let struct_name = &input_ast.ident;
+
+    let mut command_name: Option<String> = None;
+    for attr in &input_ast.attrs {
+        if attr.path().is_ident("command") {
+            if let Ok(lit) = attr.parse_args::<LitStr>() {
+                command_name = Some(lit.value());
+            }
+        }
+    }
+    let command_name = command_name.unwrap_or_else(|| struct_name.to_string().to_uppercase());
+
+    let fields = match &input_ast.data {
+        Data::Struct(ds) => &ds.fields,
+        _ => {
+            return syn::Error::new_spanned(
+                input_ast,
+                "Command derive can only be applied to structs",
+            )
+            .to_compile_error()
+            .into();
+        }
     };
 
-    // generate TryFrom<Parser> impl
-    let try_from_impl = generate_from_parse_impl(struct_name, &input.fields, &command_name);
-
-    // generate command handler and register it
+    let try_from_impl = generate_from_parse_impl(struct_name, fields, &command_name);
     let handler_impl = generate_command_handler(struct_name, &command_name);
-    let sct = quote! {
-        #[derive(Debug)]
-        #input
-    };
 
-    TokenStream::from(quote! {
-        #sct
+    let expanded = quote! {
         #try_from_impl
         #handler_impl
-    })
+    };
+
+    TokenStream::from(expanded)
 }

@@ -17,9 +17,10 @@ pub mod error;
 pub mod parser;
 pub mod registry;
 pub mod string;
+mod option;
 
 #[async_trait]
-pub trait CommandExecutor: Send + Sync + Debug {
+pub trait CommandExecutor: Send + Sync {
     async fn execute(self, ctx: Arc<Context>) -> Result<Frame, CommandError>;
 }
 
@@ -32,7 +33,7 @@ pub struct Command {
 impl Command {
     pub async fn parse(value: Frame) -> Result<Command, CommandError> {
         let mut parser = Parser::new(value)?;
-        let name_upper = parser.next_string()?.to_ascii_uppercase();
+        let name_upper = parser.next::<String>()?.to_ascii_uppercase();
         let reg = COMMAND_REGISTRY.read().await;
         if let Some(&handler) = reg.get(name_upper.as_str()) {
             Ok(Command { handler, parser })

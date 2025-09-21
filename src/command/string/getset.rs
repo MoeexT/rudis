@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use async_trait::async_trait;
-use rudis_macros::command;
+use rudis_macros::Command;
 
 use crate::{
     command::{CommandExecutor, registry::CommandResult},
@@ -10,6 +10,7 @@ use crate::{
     protocol::Frame,
 };
 
+#[derive(PartialEq, Eq, Debug, Command)]
 #[command("GETSET")]
 struct GetSetCommand {
     key: String,

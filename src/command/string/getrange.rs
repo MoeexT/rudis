@@ -1,7 +1,7 @@
 ﻿use std::{ops::Range, sync::Arc};
 
 use async_trait::async_trait;
-use rudis_macros::command;
+use rudis_macros::Command;
 
 use crate::object::redis_object::{ObjectType, RedisValue};
 use crate::{
@@ -9,7 +9,7 @@ use crate::{
     context::Context,
     protocol::Frame,
 };
-
+#[derive(PartialEq, Eq, Debug, Command)]
 #[command("GETRANGE")]
 struct GetRangeCommand {
     key: String,
