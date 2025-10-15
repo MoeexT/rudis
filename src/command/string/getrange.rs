@@ -38,7 +38,6 @@ fn get_range(len: usize, start: i64, end: i64) -> Option<Range<usize>> {
 impl CommandExecutor for GetRangeCommand {
     async fn execute(self, ctx: Arc<Context>) -> CommandResult {
         let db = ctx.db.clone();
-        let db = db.read().await;
         log::debug!("Getting range for {}", &self.key);
         if let Some(o) = db.get(&self.key) {
             if &o.header.obj_type() != &ObjectType::String {

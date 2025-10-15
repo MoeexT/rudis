@@ -19,7 +19,6 @@ struct Get {
 impl CommandExecutor for Get {
     async fn execute(self, ctx: Arc<Context>) -> CommandResult {
         let db = ctx.db.clone();
-        let db = db.read().await;
         log::debug!("[string] ctx {} get {}", ctx.id, &self.key);
         if let Some(o) = db.get(&self.key) {
             log::debug!("value get: {}", &self.key);

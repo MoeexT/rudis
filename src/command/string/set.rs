@@ -21,16 +21,16 @@ struct SetCommand {
     expiration: Option<Expiration>,
 
     // boolean flags
-    #[arg(flag = "NX")]
+    #[arg]
     nx: bool,
 
-    #[arg(flag = "XX")]
+    #[arg]
     xx: bool,
 
-    #[arg(flag = "KEEPTTL")]
+    #[arg]
     keepttl: bool,
 
-    #[arg(flag = "GET")]
+    #[arg]
     get: bool,
 }
 
@@ -39,7 +39,6 @@ impl CommandExecutor for SetCommand {
     async fn execute(self, ctx: Arc<Context>) -> CommandResult {
         log::debug!("{:?}", &self);
         let db = ctx.db.clone();
-        let db = db.write().await;
         log::debug!(
             "[string] ctx {} set {{{}: {:?}}}",
             ctx.id,

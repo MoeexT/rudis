@@ -1,6 +1,6 @@
 use quote::quote;
 use syn::punctuated::Punctuated;
-use syn::{Fields, Ident, Meta};
+use syn::{Field, Fields, Ident, Meta, Result};
 
 /// generate command handler registration code
 pub(crate) fn generate_command_handler(
@@ -41,10 +41,10 @@ pub(crate) fn generate_from_parse_impl(
     struct_name: &Ident,
     fields: &Fields,
     command_name: &str,
-) -> proc_macro2::TokenStream {
-    let (parse_statement, field_conversions) = generate_fields_from_parser(fields);
+) -> Result<proc_macro2::TokenStream> {
+    let (parse_statement, field_conversions) = generate_fields_from_parser(fields)?;
     let required_args_count = calculate_required_args_count(fields);
-    quote!(
+    Ok(quote!(
         impl TryFrom<crate::command::parser::Parser> for #struct_name {
             type Error = crate::command::error::CommandError;
 
@@ -61,12 +61,12 @@ pub(crate) fn generate_from_parse_impl(
                 )
             }
         }
-    )
+    ))
 }
 
 fn generate_fields_from_parser(
     fields: &Fields,
-) -> (proc_macro2::TokenStream, proc_macro2::TokenStream) {
+) -> Result<(proc_macro2::TokenStream, proc_macro2::TokenStream)> {
     match fields {
         Fields::Named(named_fields) => {
             // classify fields: positional, pair(option), flag(bool)
@@ -78,7 +78,7 @@ fn generate_fields_from_parser(
                 let field_name = field.ident.as_ref().unwrap();
                 let field_type = &field.ty;
 
-                let (flag_opt, aliases) = parse_arg_attributes(&field.attrs);
+                let (flag_opt, aliases) = parse_arg_attributes(&field)?;
 
                 if let Some(flag_name) = flag_opt {
                     // flag field (must be bool)
@@ -181,7 +181,7 @@ fn generate_fields_from_parser(
                 #loop_block
             };
 
-            (parse_statement, quote! { Self { #(#field_assignments),* } })
+            Ok((parse_statement, quote! { Self { #(#field_assignments),* } }))
         }
         Fields::Unnamed(unnamed_fields) => {
             // keep existing behavior for tuple structs
@@ -206,12 +206,12 @@ fn generate_fields_from_parser(
                 field_assignments.push(quote! { #field_index });
             }
 
-            (
+            Ok((
                 quote! { #(#parse_statements)* },
                 quote! { Self(#(#field_assignments),*) },
-            )
+            ))
         }
-        Fields::Unit => (quote! {}, quote! { Self }),
+        Fields::Unit => Ok((quote! {}, quote! { Self })),
     }
 }
 
@@ -225,25 +225,25 @@ fn is_option_type(ty: &syn::Type) -> bool {
 }
 
 fn parse_arg_attributes(
-    attrs: &[syn::Attribute],
-) -> (Option<String> /*flag*/, Vec<String> /*aliases*/) {
-    let mut flag: Option<String> = None;
+    field: &Field,
+) -> Result<(Option<String> /*flag*/, Vec<String> /*aliases*/)> {
+    let mut alias: Option<String> = None;
     let mut aliases: Vec<String> = Vec::new();
 
-    for attr in attrs {
+    for attr in &field.attrs {
         if attr.path().is_ident("arg") {
             if let Ok(meta_list) =
                 attr.parse_args_with(Punctuated::<Meta, syn::Token![,]>::parse_terminated)
             {
                 for meta in meta_list {
                     match meta {
-                        syn::Meta::NameValue(name_value) if name_value.path.is_ident("flag") => {
+                        syn::Meta::NameValue(name_value) if name_value.path.is_ident("alias") => {
                             if let syn::Expr::Lit(syn::ExprLit {
                                 lit: syn::Lit::Str(lit_str),
                                 ..
                             }) = &name_value.value
                             {
-                                flag = Some(lit_str.value());
+                                alias = Some(lit_str.value());
                             }
                         }
                         syn::Meta::NameValue(name_value) if name_value.path.is_ident("aliases") => {
@@ -261,14 +261,21 @@ fn parse_arg_attributes(
                                 }
                             }
                         }
-                        _ => {}
+                        _ => {
+                            return Err(syn::Error::new_spanned(
+                                meta,
+                                "Unsupported attribute in 'arg', only 'alias' and 'aliases' are supported",
+                            ));
+                        }
                     }
                 }
+            } else {
+                alias = Some(field.ident.as_ref().unwrap().to_string());
             }
         }
     }
 
-    (flag, aliases)
+    Ok((alias, aliases))
 }
 
 fn calculate_required_args_count(fields: &Fields) -> usize {

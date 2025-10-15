@@ -1,17 +1,15 @@
 use std::sync::Arc;
 
-use tokio::sync::RwLock;
-
 use crate::storage::database::Database;
 
 /// Request context
 pub struct Context {
     pub id: usize,
-    pub db: Arc<RwLock<Database>>,
+    pub db: Arc<Database>,
 }
 
 impl Context {
-    pub fn new(id: usize, db: Arc<RwLock<Database>>) -> Self {
+    pub fn new(id: usize, db: Arc<Database>) -> Self {
         Self { db, id }
     }
 }

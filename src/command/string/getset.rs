@@ -21,7 +21,6 @@ struct GetSetCommand {
 impl CommandExecutor for GetSetCommand {
     async fn execute(self, ctx: Arc<Context>) -> CommandResult {
         let db = ctx.db.clone();
-        let db = db.write().await;
         if let Some(origin_val) = db.get(&self.key) {
             db.set(self.key, RedisObject::new_string(self.value), None);
             Ok(origin_val.into())

@@ -101,7 +101,10 @@ pub fn command(input: TokenStream) -> TokenStream {
         }
     };
 
-    let try_from_impl = generate_from_parse_impl(struct_name, fields, &command_name);
+    let try_from_impl = match generate_from_parse_impl(struct_name, fields, &command_name) {
+        Ok(impl_block) => impl_block,
+        Err(err) => return err.to_compile_error().into(),
+    };
     let handler_impl = generate_command_handler(struct_name, &command_name);
 
     let expanded = quote! {

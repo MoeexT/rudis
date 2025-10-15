@@ -1,20 +1,17 @@
-use std::time::Duration;
+use std::time::{Duration, SystemTime};
 
 use dashmap::DashMap;
-use tokio::time::Instant;
 
 use crate::object::redis_object::RedisObject;
 
 pub struct Database {
-    id: usize,
     data: DashMap<String, RedisObject>,
-    expires: DashMap<String, Instant>,
+    expires: DashMap<String, SystemTime>,
 }
 
 impl Database {
-    pub fn new(id: usize) -> Self {
+    pub fn new(_: usize) -> Self {
         Database {
-            id,
             data: DashMap::new(),
             expires: DashMap::new(),
         }
@@ -22,14 +19,12 @@ impl Database {
 
     /// Returns the value's clone by key.
     pub fn get(&self, key: &str) -> Option<RedisObject> {
-        if let Some(expire) = self.expires.get(key) {
-            if Instant::now() > *expire {
-                self.data.remove(key);
-                self.expires.remove(key);
-                return None;
-            }
+        if self.is_expired(key) {
+            self.data.remove(key);
+            None
+        } else {
+            self.data.get(key).map(|val| val.clone())
         }
-        self.data.get(key).map(|val| val.clone())
     }
 
     /// Access the value by the closure `f`
@@ -37,23 +32,27 @@ impl Database {
     where
         F: FnOnce(&RedisObject) -> R,
     {
-        if let Some(expire) = self.expires.get(key) {
-            if Instant::now() > *expire {
-                self.data.remove(key);
-                self.expires.remove(key);
-                return None;
-            }
+        if self.is_expired(key) {
+            self.data.remove(key);
+            None
+        } else {
+            self.data.get(key).map(|ref_val| f(&*ref_val))
         }
-        self.data.get(key).map(|ref_val| f(&*ref_val))
     }
 
     pub fn set(&self, key: String, value: RedisObject, ttl: Option<Duration>) {
         self.data.insert(key.clone(), value);
         if let Some(ttl) = ttl {
-            self.expires.insert(key, Instant::now() + ttl);
+            self.expires.insert(key, SystemTime::now() + ttl);
         } else {
             self.expires.remove(&key);
         }
+    }
+
+    fn is_expired(&self, key: &str) -> bool {
+        self.expires
+            .remove_if(key, |_, v| SystemTime::now() > *v)
+            .is_some()
     }
 }
 
@@ -73,6 +72,6 @@ mod test {
         dbg!("", mem::size_of::<tokio::time::Instant>());
 
         let instant = std::time::Instant::now();
-        instant.elapsed();
+        let _ = instant.elapsed();
     }
 }
